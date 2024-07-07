@@ -1,0 +1,52 @@
+# https://qiita.com/suzu616masa4gm/items/df52437853cdd34c229f
+services:
+  web:
+    build: ./web
+    container_name: web
+    ports:
+      - "8080:80"
+    volumes:
+      # memo.
+      # 変更可能性が高いものは、docker-compose.yaml 内でマウントさせておく
+      # 変更可能性が低いものは（都度コンテナを作り直す）、Dockerfile 内でCOPY する
+      # memo.
+      # docker compose up -d --build では既存のコンテナを削除することがない。
+      # もしdefault.conf など書き換えた場合は、確実にコンテナに変更を反映させるため、
+      # 一度 docker compose down してコンテナを削除するとよい
+      # 場合によってはvolumes も削除するとよい docker volume rm [volume名]
+      - ./web/default.conf:/etc/nginx/conf.d/default.conf
+      - ./web/index.html:/usr/share/nginx/html/test_nginx/index.html
+    depends_on:
+      - app
+  # https://qiita.com/Yuki-TU/items/fc9d66c64eef9a882260
+  app:
+    build: ./app
+    volumes:
+      - ./app:/usr/src/app
+      - /usr/src/app/node_modules # 無名ボリューム
+      # ↓ 追加：react-project をコンテナ内で作ったらコメントアウトする
+      - /usr/src/app/bulletinboard/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    tty: true # コンテナを起動させ続ける
+  db:
+    build: ./db
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test_database2
+      MYSQL_USER: game
+      MYSQL_PASSWORD: game
+      TX: "Asis/Tokyo"
+    volumes:
+      - ./db/data:/var/lib/mysql
+      # /docker-entrypoint-initdb.d/配下は、
+      # Dockerコンテナが初回起動（初期化）される際に１度だけ実行されるスクリプトなどを配置
+      # *.sh / *.sql / *.sql.gzの拡張子のファイルはファイル名の昇順に実行される。
+      - ./db/init.sh:/docker-entrypoint-initdb.d/init.sh
+networks:
+  default:
